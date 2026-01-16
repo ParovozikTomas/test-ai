@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Last Hearth Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #game-container {
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+
+    <!-- Загрузка Phaser из CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.86.0/dist/phaser.min.js"></script>
+    
+    <script type="text/javascript">
+        // Определяем Phaser, если он загружен из CDN
+        const Phaser = window.Phaser;
+
+        // Создаем сцену игры
+        class GameScene extends Phaser.Scene {
+          // Переменные для игры
+          constructor() {
+            super({ key: 'GameScene' });
+            this.player = null;
+            this.cursors = null;
+            this.monsters = null;
+            this.bullets = null;
+            this.tavernHP = 100;
+            this.waveNumber = 1;
+            this.score = 0;
+            this.gameOver = false;
+            this.lastShotTime = 0;
+            this.shootDelay = 250; // 250ms delay between shots
+          }
+
+          preload() {
+            // Загрузка ресурсов
+            this.load.image('player', 'public/assets/player.svg');
+            this.load.image('monster', 'public/assets/monster.svg');
+            this.load.image('bullet', 'public/assets/bullet.svg');
+          }
+
+          create() {
+            // Загружаем сохраненный прогресс
+            this.loadProgress();
+            
+            // Создание игрока (стрелок в окне)
+            this.player = this.physics.add.image(400, 500, 'player');
+            this.player.setCollideWorldBounds(true);
+            this.player.setImmovable(true);
+            
+            // Настройка клавиш управления
+            this.cursors = this.input.keyboard.createCursorKeys();
+            
+            // Создание группы монстров
+            this.monsters = this.physics.add.group();
+            
+            // Создание группы пуль
+            this.bullets = this.physics.add.group();
+
+            // Добавление столкновений
+            this.physics.add.overlap(this.bullets, this.monsters, this.hitMonster.bind(this), undefined, this);
+            this.physics.add.overlap(this.player, this.monsters, this.hitTavern.bind(this), undefined, this);
+
+            // Создание первых монстров
+            this.spawnMonsters(5);
+            
+            // Добавление текста с информацией
+            this.add.text(16, 16, 'HP: ' + this.tavernHP, { fontSize: '24px', fill: '#ffffff' });
+            this.add.text(16, 48, 'Wave: ' + this.waveNumber, { fontSize: '24px', fill: '#ffffff' });
+            this.add.text(16, 80, 'Score: ' + this.score, { fontSize: '24px', fill: '#ffffff' });
+            this.add.text(16, 112, 'Monsters: ' + this.monsters.getLength(), { fontSize: '24px', fill: '#ffffff' });
+          }
+
+          spawnMonsters(count) {
+            for (let i = 0; i < count; i++) {
+              const x = Phaser.Math.Between(50, 750);
+              const y = Phaser.Math.Between(50, 200); // Монстры появляются сверху
+              
+              const monster = this.physics.add.image(x, y, 'monster');
+              monster.setBounce(0.2);
+              monster.setCollideWorldBounds(true);
+              
+              // Добавляем физику движения к таверне (к игроку)
+              this.physics.add.existing(monster);
+              monster.setInteractive();
+              
+              this.monsters.add(monster);
+              
+              // Направляем монстра к игроку
+              const direction = new Phaser.Math.Vector2(
+                this.player.x - monster.x,
+                this.player.y - monster.y
+              ).normalize();
+              
+              monster.setVelocity(direction.x * 100, direction.y * 100);
+            }
+          }
+
+          hitMonster(bullet, monster) {
+            // Уничтожаем пулю и монстра при столкновении
+            bullet.destroy();
+            monster.destroy();
+            
+            // Увеличиваем счет
+            this.score += 10;
+            
+            // Проверяем, все ли монстры уничтожены
+            if (this.monsters.getLength() === 0) {
+              this.nextWave();
+            }
+          }
+
+          hitTavern(player, monster) {
+            // Уменьшаем HP таверны при контакте с монстром
+            monster.destroy();
+            this.tavernHP -= 10;
+            
+            // Обновляем отображение HP
+            const hpText = this.children.list.find(obj => obj.text && obj.text.startsWith('HP:'));
+            if (hpText) {
+              hpText.setText('HP: ' + this.tavernHP);
+            }
+            
+            // Проверяем, закончилась ли игра
+            if (this.tavernHP <= 0) {
+              this.endGame();
+            } else {
+              // Спауним нового монстра взамен уничтоженного
+              setTimeout(() => {
+                this.spawnMonsters(1);
+              }, 1000);
+            }
+          }
+
+          nextWave() {
+            this.waveNumber++;
+            
+            // Обновляем текст волны
+            const waveText = this.children.list.find(obj => obj.text && obj.text.startsWith('Wave:'));
+            if (waveText) {
+              waveText.setText('Wave: ' + this.waveNumber);
+            }
+            
+            // Обновляем текст счета
+            const scoreText = this.children.list.find(obj => obj.text && obj.text.startsWith('Score:'));
+            if (scoreText) {
+              scoreText.setText('Score: ' + this.score);
+            }
+            
+            // Если все монстры убиты, показываем экран рассвета
+            if (this.monsters.getLength() === 0) {
+              this.showSunriseScreen();
+            } else {
+              // Спауним больше монстров в следующей волне
+              this.spawnMonsters(this.waveNumber * 2);
+            }
+          }
+
+          showSunriseScreen() {
+            // Очищаем всех монстров
+            this.monsters.clear(true, true);
+            
+            // Показываем экран рассвета
+            const sunriseText = this.add.text(400, 250, 'РАССВЕТ!', { 
+              fontSize: '64px', 
+              fill: '#FFD700' 
+            }).setOrigin(0.5);
+            
+            const scoreText = this.add.text(400, 320, `+1 Осколок Света`, { 
+              fontSize: '32px', 
+              fill: '#FFFFFF' 
+            }).setOrigin(0.5);
+            
+            const nextWaveText = this.add.text(400, 370, 'Нажмите ПРОБЕЛ для продолжения', { 
+              fontSize: '24px', 
+              fill: '#CCCCCC' 
+            }).setOrigin(0.5);
+            
+            // Сохраняем прогресс
+            this.saveProgress();
+            
+            // Добавляем возможность перейти к следующей волне
+            this.input.keyboard.once('keydown-SPACE', () => {
+              // Убираем текст рассвета
+              sunriseText.destroy();
+              scoreText.destroy();
+              nextWaveText.destroy();
+              
+              // Спауним больше монстров в следующей волне
+              this.spawnMonsters(this.waveNumber * 2);
+            });
+          }
+
+          saveProgress() {
+            // Сохраняем прогресс в localStorage
+            const gameData = {
+              score: this.score,
+              waveNumber: this.waveNumber,
+              tavernHP: this.tavernHP
+            };
+            
+            localStorage.setItem('lastHearthSave', JSON.stringify(gameData));
+          }
+
+          loadProgress() {
+            // Загружаем сохраненные данные
+            const savedData = localStorage.getItem('lastHearthSave');
+            
+            if (savedData) {
+              const gameData = JSON.parse(savedData);
+              this.score = gameData.score;
+              this.waveNumber = gameData.waveNumber;
+              this.tavernHP = gameData.tavernHP;
+            }
+          }
+
+          endGame() {
+            this.gameOver = true;
+            
+            // Отображаем экран "рассвета" и сообщение о завершении волны
+            const gameOverText = this.add.text(400, 300, 'GAME OVER', { 
+              fontSize: '64px', 
+              fill: '#ff0000' 
+            }).setOrigin(0.5);
+            
+            const restartText = this.add.text(400, 370, 'Press SPACE to restart', { 
+              fontSize: '24px', 
+              fill: '#ffffff' 
+            }).setOrigin(0.5);
+            
+            // Добавляем возможность перезапуска
+            this.input.keyboard.once('keydown-SPACE', () => {
+              this.scene.restart();
+            });
+          }
+
+          update(time, delta) {
+            if (this.gameOver) return;
+            
+            // Обновление позиции игрока только по оси X (он сидит в "окне")
+            if (this.cursors.left.isDown) {
+              this.player.setVelocityX(-200);
+            } else if (this.cursors.right.isDown) {
+              this.player.setVelocityX(200);
+            } else {
+              this.player.setVelocityX(0);
+            }
+
+            // Стрельба по пробелу или клику мыши
+            const currentTime = time;
+            if ((this.input.activePointer.isDown || this.cursors.space.isDown) && currentTime - this.lastShotTime > this.shootDelay) {
+              // Создаем пулю
+              const bullet = this.physics.add.image(this.player.x, this.player.y, 'bullet');
+              this.bullets.add(bullet);
+              
+              // Направляем пулю вверх
+              bullet.setVelocityY(-300);
+              bullet.allowGravity = false;
+              
+              this.lastShotTime = currentTime;
+            }
+            
+            // Ограничения движения игрока (он должен быть в нижней части экрана)
+            if (this.player.y < 450) {
+              this.player.setY(450);
+            }
+            
+            // Обновляем монстров
+            this.monsters.children.entries.forEach((monster) => {
+              if (!monster.active) return;
+              
+              // Направляем монстра к игроку
+              const direction = new Phaser.Math.Vector2(
+                this.player.x - monster.x,
+                this.player.y - monster.y
+              ).normalize();
+              
+              monster.setVelocity(direction.x * 100, direction.y * 100);
+            });
+            
+            // Удаляем пули, которые вышли за границы
+            this.bullets.children.entries.forEach((bullet) => {
+              if (bullet.y < 0) {
+                bullet.destroy();
+              }
+            });
+          }
+        }
+
+        // Конфигурация Phaser-игры для MVP
+        const config = {
+          type: Phaser.AUTO,
+          width: 800,
+          height: 600,
+          parent: 'game-container',
+          physics: {
+            default: 'arcade',
+            arcade: {
+              gravity: { y: 0 },
+              debug: false
+            }
+          },
+          scene: GameScene
+        };
+
+        // Создание экземпляра игры
+        const game = new Phaser.Game(config);
+    </script>
+</body>
+</html>
