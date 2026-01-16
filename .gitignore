@@ -1,33 +1,28 @@
-```markdown
-# Compiled and build artifacts
-*.pyc
-__pycache__/
-*.o
-*.obj
+```
+# Build artifacts
 dist/
 build/
-target/
+*.min.js
+*.min.css
+*.bundle.js
 
 # Dependencies
-.venv/
-venv/
 node_modules/
-.julia/
-zig*/
-.env
-.env.local
-.env.*
 
 # Logs and temp files
 *.log
 *.tmp
-*.swp
+
+# Environment
+.env
+.env.local
+*.env.*
 
 # Editors
 .vscode/
 .idea/
 
-# System files
+# OS generated files
 .DS_Store
 Thumbs.db
 ```
