@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Last Hearth - Рогалик + Таверн-дефенс</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div id="ui-panel">
+            <div class="stat">HP: <span id="tavernHP">100</span></div>
+            <div class="stat">Волна: <span id="waveNumber">1</span></div>
+            <div class="stat">Счёт: <span id="score">0</span></div>
+            <div class="stat">Монстров: <span id="monsterCount">0</span></div>
+        </div>
+        
+        <div id="upgrade-screen" class="screen hidden">
+            <h2>Выберите улучшение:</h2>
+            <div class="upgrade-options">
+                <button class="upgrade-btn" id="upgrade1"></button>
+                <button class="upgrade-btn" id="upgrade2"></button>
+                <button class="upgrade-btn" id="upgrade3"></button>
+            </div>
+        </div>
+        
+        <div id="game-over-screen" class="screen hidden">
+            <h2>GAME OVER</h2>
+            <p>Ваша таверна пала...</p>
+            <button id="restart-btn">Начать заново</button>
+        </div>
+        
+        <div id="sunrise-screen" class="screen hidden">
+            <h2>РАССВЕТ!</h2>
+            <p>+1 Осколок Света</p>
+            <button id="next-wave-btn">Продолжить</button>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
